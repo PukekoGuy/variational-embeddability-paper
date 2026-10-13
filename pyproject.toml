@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "variational-embeddability-research"
+version = "0.1.0"
+description = "Generator estimation solvers, simulation and plotting tools"
+requires-python = ">=3.10"
+dependencies = ["numpy", "scipy", "matplotlib"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["solvers*", "experiments*", "plotting*", "paper*", "snippets*"]
+
+[tool.setuptools.package-data]
+paper = ["data/*.csv"]
