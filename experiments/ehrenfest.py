@@ -69,7 +69,7 @@ def run_experiments(generator, rank, fixed_times, num_intervals,
                     mu=1., kappa=1., max_iter=5000, num_trials=5, seed=1008,
                     initial_distribution=None, rtol=1e-9, atol=1e-11,
                     ftol=1e-8, gtol=1e-5):
-    """Simulate, fit and average trial errors for each panel size."""
+    """Average squared errors over all grid points/entries, then over trials."""
     fixed_times = np.asarray(fixed_times)
     num_individuals_range = list(num_individuals_range)
     grid = np.linspace(0., 1., num_intervals + 1)
@@ -93,7 +93,7 @@ def run_experiments(generator, rank, fixed_times, num_intervals,
             start = perf_counter()
             estimate, result = embedder.optimise_A(fixed_times, paths, return_result=True)
             fit_seconds = perf_counter() - start
-            error = np.mean((estimate[:-1] - true_A[:-1])**2) / num_intervals
+            error = np.mean((estimate - true_A)**2)
             estimates.append(estimate)
             errors.append(error)
             fit_times.append(fit_seconds)

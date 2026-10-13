@@ -12,9 +12,9 @@ Custom volumes:
 Both volumes default to 1. Volumes must be finite and positive.
 num_particles counts particles within a chain; individuals counts independent
 chains. A Poisson clock of rate jump_frequency converts move probabilities
-into continuous-time rates. The reported error is the trial average of
-mean((estimate[:-1] - true_A[:-1])**2) / num_intervals, including diagonals.
-This normalisation is not the integrated squared Frobenius error.
+into continuous-time rates. MISE is the trial average of
+mean((estimate - true_A)**2), over all grid points and matrix entries,
+including diagonals, as in the two-state comparison experiments.
 """
 import argparse
 from pathlib import Path

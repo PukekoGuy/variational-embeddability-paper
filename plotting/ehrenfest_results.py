@@ -10,9 +10,9 @@ def plot_ehrenfest_results(results_file,
     """Plot saved MISE, without rerunning the experiment."""
     data = np.atleast_1d(np.genfromtxt(results_file, delimiter=',', names=True))
     fig, ax = plt.subplots(figsize=figsize)
-    ax.loglog(data['num_individuals'], data['mise'], 'o-', label='Mean squared error / intervals')
+    ax.loglog(data['num_individuals'], data['mise'], 'o-', label='MISE')
     ax.set_xlabel('Number of independent observed chains')
-    ax.set_ylabel('Mean squared entry error / number of intervals')
+    ax.set_ylabel('Mean squared generator-entry error')
     ax.set_title('Ehrenfest generator estimation')
     ax.grid(True, which='both', alpha=grid_alpha)
     ax.legend()

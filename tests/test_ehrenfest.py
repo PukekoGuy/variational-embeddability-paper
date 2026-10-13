@@ -1,6 +1,8 @@
 import unittest
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 import numpy as np
 from scipy.linalg import expm
 from experiments import ehrenfest as e
@@ -8,6 +10,28 @@ from plotting.ehrenfest_results import plot_ehrenfest_results
 from solvers.weak_birth_death_adjoint import BirthDeathEmbedder
 
 class EhrenfestTests(unittest.TestCase):
+    def test_mise_averages_trial_errors_over_all_grid_points_and_entries(self):
+        # Three grid points, four entries per matrix. The only nonzero errors
+        # are at the final point: squared sums are 8 and 72, hence trial errors
+        # 2/3 and 6. Their mean is 10/3, rather than the mean path's error 8/3.
+        first = np.zeros((3, 2, 2))
+        first[-1] = [[-2., 2.], [0., 0.]]
+        second = 3 * first
+        status = SimpleNamespace(success=True, nit=1, message='test fit')
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / 'experiment'
+            with patch.object(BirthDeathEmbedder, 'optimise_A',
+                              side_effect=[(first, status), (second, status)]):
+                _, paths, rows = e.run_experiments(
+                    lambda t: np.zeros((2, 2)), 2, [0., 1.], 2, [3],
+                    num_trials=2, output_prefix=prefix,
+                )
+            self.assertAlmostEqual(rows[0]['mise'], 10/3)
+            trials = np.genfromtxt(f'{prefix}_trials.csv', delimiter=',', names=True,
+                                  dtype=None, encoding='utf-8')
+            np.testing.assert_allclose(trials['ise'], [2/3, 6.])
+            np.testing.assert_allclose(paths[0], (first + second) / 2)
+
     def test_model_endpoints_and_volume_effect(self):
         q = e.ehrenfest_generator(6, 6., volume_a_fn=lambda t: np.exp(-t))
         self.assertGreater(q(0)[6,5], 0)
