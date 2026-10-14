@@ -20,7 +20,6 @@ def plot_ehrenfest_rates(generators_file, figure_file=None, *, show=True):
         raise ValueError('Expected one saved sample size and six-state generators')
     fig, axes = plot_level_rates(estimates, true, times=times, show=False)
     for ax in axes.flat:
-        ax.set_ylabel('Rate')
         ax.grid(True, alpha=.3)
         ax.legend()
     fig.suptitle(f'Ehrenfest rates: {int(individuals[0])} independent chains')
