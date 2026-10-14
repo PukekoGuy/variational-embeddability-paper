@@ -6,10 +6,16 @@ import matplotlib.pyplot as plt
 from .cosmetics import PLOT_FONT_SIZE
 from .generator_paths import plot_generator_path
 
+TRUE_PATH_WIDTH_FACTOR = 2.0
+
 
 def plot_comparison_panels(data, *, plot_frequency=1, fontsize=PLOT_FONT_SIZE,
-                           figsize=(12, 12), show=True):
-    """Consume the arrays saved by paper/comparison.py; return fig, axes."""
+                           figsize=(12, 12), show=True, different_colors=True):
+    """Consume saved arrays; return fig, axes.
+
+    Set ``different_colors=False`` to draw all estimated paths in blue.
+    The dashed true path uses ``TRUE_PATH_WIDTH_FACTOR`` times the default width.
+    """
     if not isinstance(plot_frequency, (int, np.integer)) or plot_frequency < 1:
         raise ValueError('plot_frequency must be a positive integer')
     fig, axes = plt.subplots(2, 2, figsize=figsize, layout='constrained')
@@ -23,7 +29,9 @@ def plot_comparison_panels(data, *, plot_frequency=1, fontsize=PLOT_FONT_SIZE,
             plot_generator_path(data[name + '_estimates'][row], data[name + '_true'][row],
                                    sizes, times=np.linspace(0., 1., count) if col == 0 else None,
                                    plot_frequency=plot_frequency, ax=axes[row, col],
-                                   title=title, fontsize=fontsize)
+                                   title=title, fontsize=fontsize,
+                                   different_colors=different_colors,
+                                   true_linewidth=TRUE_PATH_WIDTH_FACTOR * plt.rcParams['lines.linewidth'])
     if show:
         plt.show()
     return fig, axes

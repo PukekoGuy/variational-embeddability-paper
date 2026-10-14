@@ -6,12 +6,15 @@ import matplotlib.pyplot as plt
 
 def plot_generator_path(
     gen_paths, true_A, num_individuals_range, times=None, plot_frequency=1,
-    *, ax=None, show=False, title=None, fontsize=14, observation_markers=False
+    *, ax=None, show=False, title=None, fontsize=14, observation_markers=False,
+    different_colors=True, true_linewidth=None
 ):
     """Plot a two-state rate-space curve and always return its Axes.
 
     Supply ``ax`` to compose subplots. Set ``show=True`` to display the figure.
     ``title=None`` uses the default title; an empty string omits it.
+    Set ``different_colors=False`` to draw all estimates in blue.
+    ``true_linewidth`` overrides the width of the dashed true path.
     """
     assert gen_paths[0][0].shape == (2, 2)
 
@@ -24,14 +27,15 @@ def plot_generator_path(
     true_x = [true_A[t][0, 1] for t in range(len(true_A))]
     true_y = [true_A[t][1, 0] for t in range(len(true_A))]
 
-    ax.plot(true_x, true_y, label="true", color="C1", linestyle="--")
+    ax.plot(true_x, true_y, label="true", color="C1", linestyle="--",
+            linewidth=true_linewidth)
 
     cmap = plt.colormaps["viridis"]
     denom = max(1, len(num_individuals_to_plot) - 1)
     for k, (num_individuals, gen_path) in enumerate(zip(num_individuals_to_plot, gen_paths_to_plot)):
         x = [gen_path[t][0, 1] for t in range(len(gen_path))]
         y = [gen_path[t][1, 0] for t in range(len(gen_path))]
-        color = cmap(k / denom)
+        color = cmap(k / denom) if different_colors else "C0"
         ax.plot(x, y, label=f"{num_individuals}", color=color, alpha=0.5)
 
     if (times is not None) and observation_markers:
@@ -55,7 +59,8 @@ def plot_generator_path(
     return ax
 
 
-def plot_level_rates(generator_paths, true_A=None, decimal_places=None, *, show=True):
+def plot_level_rates(generator_paths, true_A=None, decimal_places=None, *, show=True,
+                     times=None):
     """Plot every estimated birth and death rate as a function of time."""
     if decimal_places is not None and decimal_places < 0:
         raise ValueError("decimal_places must be nonnegative")
@@ -64,18 +69,28 @@ def plot_level_rates(generator_paths, true_A=None, decimal_places=None, *, show=
         raise ValueError("generator_paths must not be empty")
 
     rank = paths[0].shape[1]
+    if times is None:
+        times = np.arange(len(paths[0]))
+        time_label = "time-grid index"
+    else:
+        times = np.asarray(times)
+        if times.shape != (len(paths[0]),):
+            raise ValueError("times must have one entry per generator grid point")
+        time_label = "Time"
     fig, axes = plt.subplots(2, rank - 1, squeeze=False, figsize=(4 * (rank - 1), 6))
 
     for level in range(rank - 1):
         for path in paths:
-            axes[0, level].plot(path[:, level, level + 1], alpha=0.45)
-            axes[1, level].plot(path[:, level + 1, level], alpha=0.45)
+            axes[0, level].plot(times, path[:, level, level + 1], alpha=0.45,
+                                label="estimated")
+            axes[1, level].plot(times, path[:, level + 1, level], alpha=0.45,
+                                label="estimated")
         if true_A is not None:
-            axes[0, level].plot(true_A[:, level, level + 1], "k--", label="true")
-            axes[1, level].plot(true_A[:, level + 1, level], "k--", label="true")
+            axes[0, level].plot(times, true_A[:, level, level + 1], "k--", label="true")
+            axes[1, level].plot(times, true_A[:, level + 1, level], "k--", label="true")
         axes[0, level].set_title(rf"birth $\lambda_{{{level}}}$")
         axes[1, level].set_title(rf"death $\mu_{{{level + 1}}}$")
-        axes[1, level].set_xlabel("time-grid index")
+        axes[1, level].set_xlabel(time_label)
 
     if decimal_places is not None:
         from matplotlib.ticker import FormatStrFormatter

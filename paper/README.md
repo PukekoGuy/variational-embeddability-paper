@@ -26,6 +26,22 @@ python -m paper.comparison --individuals 1000 1000 1000 1000 1000 1000 1000 1000
 python -c 'import numpy as np; from experiments.ehrenfest import generate_data; from plotting.ehrenfest_results import plot_ehrenfest_results; generate_data(num_particles=6, jump_frequency=6., volume_a_fn=lambda t: np.exp(-t), volume_b_fn=lambda t: 1., individuals=(100, 300, 1000, 3000, 10000), num_observations=20, num_intervals=190, num_trials=5, mu=1., kappa=1., max_iter=5000, seed=1008, ftol=1e-8, gtol=1e-5, rtol=1e-9, atol=1e-11, output_prefix="results/ehrenfest_paper"); plot_ehrenfest_results("results/ehrenfest_paper_results.csv", "results/ehrenfest_paper_mise.png", show=False)'
 ```
 
+## Ehrenfest rates over time
+
+This separate example fits one sample of 5,000 independent chains, with five
+particles (six states). It plots five birth rates above five death rates, each
+against the true rate over time, using chamber volumes `exp(-t)` and `1`.
+The existing Ehrenfest MISE example remains available.
+
+```sh
+python run_example.py ehrenfest_rates --individuals 5000 --no-show
+python run_example.py ehrenfest_rates --plot-only --no-show
+```
+
+Outputs use the separate `results/ehrenfest_rates` prefix: `_generators.npz`,
+`_results.csv`, `_trials.csv`, and `_rates.png`. The single trial's convergence
+status is recorded in `_trials.csv`. Replotting uses only the saved generators.
+
 ## Financial birth-death
 
 ```sh

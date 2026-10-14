@@ -27,7 +27,8 @@ def main():
     if not args.plot_only:
         generate_comparison(args.results_file, args.individuals, args.num_observations, args.constant,
                       num_intervals=args.num_intervals, max_iter=args.max_iter, seed=args.seed)
-    plot_comparison_results(args.results_file, args.figure_file, show=not args.no_show)
+    plot_comparison_results(args.results_file, args.figure_file, show=not args.no_show,
+                            different_colors=False)
 
 
 if __name__ == '__main__':
