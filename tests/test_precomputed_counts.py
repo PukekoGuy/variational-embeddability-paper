@@ -35,7 +35,7 @@ class PrecomputedCountsTest(unittest.TestCase):
     def test_each_fit_counts_once_despite_multiple_gradient_evaluations(self):
         for cls in (Adjoint, Direct, Jumps):
             with self.subTest(method=cls.__module__):
-                emb = cls(2, num_intervals=4, mu=.03, kappa=1, max_iter=10)
+                emb = cls(2, num_intervals=4, mu0=.03, mu1=.03, max_iter=10)
                 args = ((self.jump_times, self.jump_states) if cls is Jumps
                         else ([0., .5, 1.], self.fixed_data))
                 # Spies retain real counting, gradient evaluation, and optimization.
@@ -55,7 +55,7 @@ class PrecomputedCountsTest(unittest.TestCase):
         x = np.linspace(.3, 1.4, 10)
         for cls in (Adjoint, Direct, Jumps):
             with self.subTest(method=cls.__module__):
-                emb = cls(2, num_intervals=4, mu=.03, kappa=1)
+                emb = cls(2, num_intervals=4, mu0=.03, mu1=.03)
                 if cls is Jumps:
                     counts = emb.transition_counts(self.jump_times, self.jump_states)
                     args = (counts,)

@@ -1,4 +1,4 @@
-"""Ehrenfest generator estimation from periodic observations.
+"""Compare Ehrenfest generator estimation from fixed and jump-time observations.
 
 Run: python run_example.py ehrenfest --no-show
 Replot: python run_example.py ehrenfest --plot-only --no-show
@@ -15,6 +15,8 @@ chains. A Poisson clock of rate jump_frequency converts move probabilities
 into continuous-time rates. MISE is the trial average of
 mean((estimate - true_A)**2), over all grid points and matrix entries,
 including diagonals, as in the two-state comparison experiments.
+Each trial simulates Euler trajectories once and gives their periodic snapshots
+to the fixed-time solver and their full jump histories to the jump-time solver.
 """
 import argparse
 from pathlib import Path
@@ -36,12 +38,15 @@ def main():
     parser.add_argument('--num-trials', type=int, default=5)
     parser.add_argument('--max-iter', type=int, default=5000)
     parser.add_argument('--seed', type=int, default=1008)
+    parser.add_argument("--mu0", type=float, default=1., help="Generator magnitude penalty weight")
+    parser.add_argument("--mu1", type=float, default=1., help="Generator derivative penalty weight")
     args = parser.parse_args()
     if not args.plot_only:
         generate_data(output_prefix=args.output_prefix, num_particles=args.num_particles,
                       jump_frequency=args.jump_frequency, individuals=args.individuals,
                       num_observations=args.num_observations, num_intervals=args.num_intervals,
-                      num_trials=args.num_trials, max_iter=args.max_iter, seed=args.seed)
+                      num_trials=args.num_trials, max_iter=args.max_iter, seed=args.seed,
+                      mu0=args.mu0, mu1=args.mu1)
     plot_ehrenfest_results(f'{args.output_prefix}_results.csv',
                            f'{args.output_prefix}_mise.png', show=not args.no_show)
 

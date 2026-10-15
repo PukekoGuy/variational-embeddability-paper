@@ -38,9 +38,9 @@ class Reorganisation(unittest.TestCase):
                 num_observations=3, num_intervals=10, num_trials=2,
                 max_iter=2, output_prefix=prefix,
             )
-            self.assertTrue(np.isfinite(rows[0]['mise']))
+            self.assertTrue(np.isfinite(rows[0]['fixed_mise']))
             trials = np.genfromtxt(f'{prefix}_trials.csv', delimiter=',', names=True)
-            self.assertAlmostEqual(rows[0]['mise'], np.mean(trials['ise']))
+            self.assertAlmostEqual(rows[0]['fixed_mise'], np.mean(trials['fixed_ise']))
             self.assertTrue(Path(f'{prefix}_generators.npz').exists())
 
     def test_saved_transition_matrix_is_loaded_through_observations(self):

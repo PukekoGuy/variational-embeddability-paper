@@ -3,13 +3,14 @@
 import numpy as np
 from scipy.optimize import minimize
 from .matrix_helpers import A_mat_from_rates, matrix_to_rates, fixed_transition_counts
+from .regularisation import regularisation_weights, sobolev_objective_grad
 
 class FixedTimeGradient:
-    def __init__(self, rank, num_intervals=100, mu=1e-2, kappa=1e2, max_iter=500):
+    def __init__(self, rank, num_intervals=100, max_iter=500,
+                 *, mu0=1e-2, mu1=1e-2):
         self.num_intervals = num_intervals
         self.dt = 1.0 / num_intervals
-        self.mu = mu
-        self.kappa = kappa
+        self.mu0, self.mu1 = regularisation_weights(mu0, mu1)
         self.rank = rank
         self.num_rates = rank * (rank - 1)
         self.epsilon = 1e-12
@@ -59,11 +60,9 @@ class FixedTimeGradient:
                 A, obs_times, counts[k - 1], k, matrix_gradient
             )
 
-        differences = A[1:] - A[:-1]
-        U += 0.5 * self.mu / self.dt * np.sum(differences**2)
-
-        matrix_gradient[1:] += self.mu / self.dt * differences
-        matrix_gradient[:-1] -= self.mu / self.dt * differences
+        penalty, penalty_gradient = sobolev_objective_grad(A, self.dt, self.mu0, self.mu1)
+        U += penalty
+        matrix_gradient += penalty_gradient
 
         G = np.stack([
             matrix_to_rates(grad, self.rank, self.num_rates)
@@ -89,13 +88,12 @@ class FixedTimeGradient:
             backward[i] = factors[i] @ backward[i + 1]
 
         transition = forward[-1]
-        U = -self.kappa * np.sum(counts * np.log(transition + self.epsilon))
+        U = -np.sum(counts * np.log(transition + self.epsilon))
         M = counts / (transition + self.epsilon)
 
         for i, tau in enumerate(range(t0, t1)):
             G[tau] -= (
-                self.kappa
-                * self.dt
+                self.dt
                 * forward[i].T
                 @ M
                 @ backward[i + 1].T

@@ -33,13 +33,15 @@ def main():
     parser.add_argument("--num-trials", type=int, default=5,
                         help="Independent trials per sample size (default: 5)")
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--mu0", type=float, default=.01, help="Generator magnitude penalty weight")
+    parser.add_argument("--mu1", type=float, default=.01, help="Generator derivative penalty weight")
     args = parser.parse_args()
     if not args.plot_only:
         generate_adjoint_comparison(
             args.results_file, target_jumps=args.target_jumps,
             num_observations=args.num_observations, num_intervals=args.num_intervals,
             num_individuals_list=args.individuals, max_iter=args.max_iter, seed=args.seed,
-            num_trials=args.num_trials,
+            num_trials=args.num_trials, mu0=args.mu0, mu1=args.mu1,
         )
     plot_adjoint_vs_gradient_results(args.results_file, args.figure_file, show=not args.no_show,
                            method=args.method)

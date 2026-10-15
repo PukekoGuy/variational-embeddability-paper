@@ -24,16 +24,20 @@ class EhrenfestRatesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             saved = Path(directory) / 'generators.npz'
             np.savez(saved, times=times, true_generator=true,
-                     mean_estimated_generators=[estimate], individuals=[1000])
+                     mean_fixed_estimated_generators=[estimate],
+                     mean_jump_estimated_generators=[estimate + .5], individuals=[1000])
             fig, axes = plot_ehrenfest_rates(saved, show=False)
             self.addCleanup(plt.close, fig)
             self.assertEqual(axes.shape, (5, 2))
             for row in range(5):
                 for col in range(2):
-                    estimated_line, true_line = axes[row, col].lines
+                    estimated_line, jump_line, true_line = axes[row, col].lines
                     expected = np.array([row + 1, row + 2, row + 3]) + 10 * col
                     np.testing.assert_allclose(true_line.get_ydata(), expected)
                     np.testing.assert_allclose(estimated_line.get_ydata(), expected + .5)
+                    np.testing.assert_allclose(jump_line.get_ydata(), expected + 1.)
+                    self.assertEqual([line.get_label() for line in axes[row, col].lines],
+                                     ["Fixed-time", "Jump-time", "true"])
                     np.testing.assert_allclose(true_line.get_xdata(), times)
                     np.testing.assert_allclose(estimated_line.get_xdata(), times)
 
@@ -41,14 +45,16 @@ class EhrenfestRatesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             prefix = Path(directory) / 'rates'
             command = [sys.executable, str(ROOT / 'run_example.py'), 'ehrenfest_rates',
-                       '--output-prefix', str(prefix), '--no-show']
+                       '--output-prefix', str(prefix), '--figure-file',
+                       str(prefix) + '_rates.png', '--no-show']
             fitted = subprocess.run(command + ['--individuals', '20', '--num-observations', '3',
-                                    '--num-intervals', '4', '--max-iter', '2'],
+                                    '--num-intervals', '12', '--max-iter', '2'],
                                     capture_output=True, text=True, timeout=30,
                                     env={**os.environ, 'MPLBACKEND': 'Agg'})
             self.assertEqual(fitted.returncode, 0, fitted.stderr)
             with np.load(f'{prefix}_generators.npz') as saved:
-                self.assertEqual(saved['mean_estimated_generators'].shape, (1, 5, 6, 6))
+                self.assertEqual(saved['mean_fixed_estimated_generators'].shape, (1, 13, 6, 6))
+                self.assertEqual(saved['mean_jump_estimated_generators'].shape, (1, 13, 6, 6))
                 np.testing.assert_array_equal(saved['individuals'], [20])
             self.assertTrue(Path(f'{prefix}_rates.png').exists())
             before = Path(f'{prefix}_generators.npz').read_bytes()

@@ -36,7 +36,7 @@ class ComparisonResult:
 
 def _run_batched_comparison(
     generator, rank, fixed_times, num_intervals, sizes, results_file,
-    mu, kappa, max_iter, seed, num_trials, *, compare_jumps, batch_size=10000,
+    mu0, mu1, max_iter, seed, num_trials, *, compare_jumps, batch_size=10000,
 ):
     """Simulate and fit two methods, sharing validation, timing and trial means."""
     if (isinstance(num_trials, (bool, np.bool_))
@@ -53,9 +53,9 @@ def _run_batched_comparison(
     start = perf_counter()
     observations = Observation(generator, rank, fixed_times, num_intervals, seed)
     solvers = (
-        FixedTimeAdjoint(rank, num_intervals, mu, kappa, max_iter),
+        FixedTimeAdjoint(rank, num_intervals, max_iter=max_iter, mu0=mu0, mu1=mu1),
         (JumpTimeGradient if compare_jumps else FixedTimeGradient)(
-            rank, num_intervals, mu, kappa, max_iter),
+            rank, num_intervals, max_iter=max_iter, mu0=mu0, mu1=mu1),
     )
     print(f'Shared transition setup: {perf_counter() - start:.3f}s', flush=True)
     true_A = observations.true_A
@@ -119,7 +119,7 @@ def _run_batched_comparison(
 
 def run_adjoint_experiments(
     generator, rank, fixed_times, num_intervals, num_individuals_range,
-    results_file=ADJOINT_RESULTS_FILE, mu=1e-2, kappa=1.0, max_iter=500,
+    results_file=ADJOINT_RESULTS_FILE, mu0=1e-2, mu1=1e-2, max_iter=500,
     seed=None, num_trials=5,
 ):
     """Fit adjoint/direct methods to the same panel; return paths and trial means.
@@ -132,13 +132,13 @@ def run_adjoint_experiments(
     """
     return _run_batched_comparison(
         generator, rank, fixed_times, num_intervals, num_individuals_range,
-        results_file, mu, kappa, max_iter, seed, num_trials, compare_jumps=False,
+        results_file, mu0, mu1, max_iter, seed, num_trials, compare_jumps=False,
     )
 
 
 def run_jump_comparison_experiments(
     generator, rank, fixed_times, num_intervals, num_individuals_list,
-    results_file=JUMP_RESULTS_FILE, mu=1e-4, kappa=1, max_iter=500,
+    results_file=JUMP_RESULTS_FILE, mu0=1e-4, mu1=1e-4, max_iter=500,
     seed=None, batch_size=10000, num_trials=5,
 ):
     """Fit fixed/jump methods to separate samples from the same generator.
@@ -148,19 +148,19 @@ def run_jump_comparison_experiments(
     """
     return _run_batched_comparison(
         generator, rank, fixed_times, num_intervals, num_individuals_list,
-        results_file, mu, kappa, max_iter, seed, num_trials,
+        results_file, mu0, mu1, max_iter, seed, num_trials,
         compare_jumps=True, batch_size=batch_size,
     )
 
 def _run_panel_experiment(
     generator, sizes, observation_times, num_intervals,
-    mu, kappa, max_iter, seed, *, observe_jumps,
+    mu0, mu1, max_iter, seed, *, observe_jumps,
 ):
     """Fit one panel with the same simulator used by the pairwise comparisons."""
     observations = Observation(generator, 2, observation_times, num_intervals, seed)
     solver_type = JumpTimeGradient if observe_jumps else FixedTimeAdjoint
     solver = solver_type(2, num_intervals=num_intervals,
-                         mu=mu, kappa=kappa, max_iter=max_iter)
+                         mu0=mu0, mu1=mu1, max_iter=max_iter)
     estimates, errors = [], []
     for n in sizes:
         if observe_jumps:
@@ -173,10 +173,49 @@ def _run_panel_experiment(
     return estimates, observations.true_A, np.asarray(errors)
 
 
+def generate_fixed_time_performance(
+    results_file, *, mu0=1e-2, mu1=1e-2, target_jumps=1,
+    num_observations=20, num_intervals=100, num_individuals_list=None,
+    max_iter=500, num_trials=5, seed=1008,
+):
+    """Run fresh fixed-time performance trials; save mean errors and fit times."""
+    if num_individuals_list is None:
+        num_individuals_list = np.rint(np.geomspace(1, 1e6, 12)).astype(int)
+    sizes = np.asarray(list(num_individuals_list), dtype=int)
+    if sizes.size == 0 or np.any(sizes < 1) or num_trials < 1:
+        raise ValueError('Sample sizes and num_trials must be positive')
+    generator = tune_generator_for_target_jumps(lambda A: trig_generator(A=A), 2, target_jumps)
+    times = np.linspace(0., 1., num_observations)
+    observations = Observation(generator, 2, times, num_intervals, seed)
+    solver = FixedTimeAdjoint(2, num_intervals, mu0=mu0, mu1=mu1, max_iter=max_iter)
+    results_file = Path(results_file)
+    results_file.parent.mkdir(parents=True, exist_ok=True)
+    rows = []
+    with results_file.open('w', newline='', encoding='utf-8') as output:
+        writer = csv.DictWriter(output, fieldnames=(
+            'num_individuals', 'fixed_mise', 'fixed_execution_seconds', 'num_trials'))
+        writer.writeheader()
+        for n in sizes:
+            errors, seconds = [], []
+            for trial in range(num_trials):
+                panel = observations.simulate_fixed_observations(int(n))
+                start = perf_counter()
+                estimate = solver.optimise_A(times, panel)
+                seconds.append(perf_counter() - start)
+                errors.append(float(np.mean((estimate - observations.true_A)**2)))
+                print(f'n={n}, trial={trial + 1}/{num_trials}: ISE={errors[-1]:.6g}', flush=True)
+            row = dict(num_individuals=int(n), fixed_mise=float(np.mean(errors)),
+                       fixed_execution_seconds=float(np.mean(seconds)), num_trials=num_trials)
+            rows.append(row)
+            writer.writerow(row)
+            output.flush()
+    return rows
+
+
 def generate_adjoint_comparison(
     results_file=ADJOINT_RESULTS_FILE, target_jumps=1, num_observations=20,
     rank=2, num_intervals=1000, num_individuals_list=None,
-    max_iter=500, seed=None, num_trials=5,
+    max_iter=500, seed=None, num_trials=5, mu0=1e-2, mu1=1e-2,
 ):
     """Tune a two-state model and compare adjoint/direct fits over panel sizes."""
     if rank != 2:
@@ -190,14 +229,14 @@ def generate_adjoint_comparison(
     return run_adjoint_experiments(
         generator, rank, np.linspace(0.0, 1.0, num_observations),
         num_intervals, num_individuals_list, results_file=results_file,
-        max_iter=max_iter, seed=seed, num_trials=num_trials,
+        max_iter=max_iter, seed=seed, num_trials=num_trials, mu0=mu0, mu1=mu1,
     )
 
 
 def generate_jump_comparison(
     results_file=JUMP_RESULTS_FILE, target_jumps=8, rank=2,
     num_intervals=1000, num_individuals_list=None, max_iter=500,
-    seed=None, batch_size=10000, num_trials=5,
+    seed=None, batch_size=10000, num_trials=5, mu0=1., mu1=1.,
 ):
     if rank != 2:
         raise ValueError("trig_generator is rank 2; use a run_*_experiments function for other generators")
@@ -210,13 +249,13 @@ def generate_jump_comparison(
     return run_jump_comparison_experiments(
         generator, rank, np.linspace(0, 1, target_jumps),
         num_intervals, num_individuals_list, results_file=results_file,
-        max_iter=max_iter, seed=seed, batch_size=batch_size, mu=1, num_trials=num_trials,
+        max_iter=max_iter, seed=seed, batch_size=batch_size, mu0=mu0, mu1=mu1, num_trials=num_trials,
     )
 
 
 def generate_comparison(results_file=COMPARISON_RESULTS_FILE, num_individuals_range=(1000,) * 10,
                   num_observations=(20, 10), constant=10, *, num_intervals=1000,
-                  mu=1e-2, kappa=1., max_iter=500, seed=None):
+                  mu0=1e-2, mu1=1e-2, max_iter=500, seed=None):
     """Simulate and fit all four panels, saving arrays to an NPZ file.
 
     Fixed-time targets count / constant expected jumps; jump-time targets count.
@@ -243,7 +282,7 @@ def generate_comparison(results_file=COMPARISON_RESULTS_FILE, num_individuals_ra
             generator = tune_generator_for_target_jumps(
                 lambda A: trig_generator(A=A), 2, target, num_intervals=num_intervals)
             results.append(_run_panel_experiment(
-                generator, sizes, times, num_intervals, mu, kappa, max_iter,
+                generator, sizes, times, num_intervals, mu0, mu1, max_iter,
                 rng, observe_jumps=observe_jumps,
             ))
     data = dict(individuals=sizes, num_observations=np.asarray(counts), constant=np.asarray(constant))

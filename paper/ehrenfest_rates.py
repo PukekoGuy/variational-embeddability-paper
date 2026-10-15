@@ -4,6 +4,8 @@ Run: python run_example.py ehrenfest_rates --no-show
 Replot: python run_example.py ehrenfest_rates --plot-only --no-show
 
 Five particles give six states and ten directed neighbouring-state rates.
+Each panel overlays fixed-time and jump-time estimates from the same sample,
+alongside the true rate. Both solvers fit only birth and death rates.
 The chamber volumes are V_A(t)=exp(-t) and V_B(t)=1 on [0, 1].
 """
 
@@ -15,12 +17,14 @@ from experiments.ehrenfest import DEFAULT_OUTPUT_PREFIX, generate_data
 from plotting.ehrenfest_rates import plot_ehrenfest_rates
 
 DEFAULT_RATES_OUTPUT_PREFIX = DEFAULT_OUTPUT_PREFIX.with_name('ehrenfest_rates')
+DEFAULT_FIGURE_FILE = DEFAULT_OUTPUT_PREFIX.with_name('ex5_ehrenfest_rates.png')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--output-prefix', type=Path, default=DEFAULT_RATES_OUTPUT_PREFIX)
+    parser.add_argument('--figure-file', type=Path, default=DEFAULT_FIGURE_FILE)
     parser.add_argument('--plot-only', action='store_true')
     parser.add_argument('--no-show', action='store_true')
     parser.add_argument('--individuals', type=int, default=1000)
@@ -29,6 +33,8 @@ def main():
     parser.add_argument('--num-intervals', type=int, default=190)
     parser.add_argument('--max-iter', type=int, default=5000)
     parser.add_argument('--seed', type=int, default=1008)
+    parser.add_argument("--mu0", type=float, default=1., help="Generator magnitude penalty weight")
+    parser.add_argument("--mu1", type=float, default=1., help="Generator derivative penalty weight")
     args = parser.parse_args()
     if not args.plot_only:
         if args.individuals < 1:
@@ -41,9 +47,10 @@ def main():
                       volume_a_fn=lambda t: np.exp(-t), volume_b_fn=lambda t: 1.,
                       individuals=(args.individuals,), num_observations=args.num_observations,
                       num_intervals=args.num_intervals, num_trials=1,
-                      max_iter=args.max_iter, seed=args.seed, output_prefix=args.output_prefix)
+                      max_iter=args.max_iter, seed=args.seed, output_prefix=args.output_prefix,
+                      mu0=args.mu0, mu1=args.mu1)
     plot_ehrenfest_rates(f'{args.output_prefix}_generators.npz',
-                         f'{args.output_prefix}_rates.png', show=not args.no_show)
+                         args.figure_file, show=not args.no_show)
 
 
 if __name__ == '__main__':

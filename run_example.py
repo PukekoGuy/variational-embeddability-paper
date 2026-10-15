@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 EXAMPLES = ('comparison', 'fixed_vs_jump', 'adjoint_vs_gradient',
-            'ehrenfest', 'ehrenfest_rates', 'financial_birth_death')
+            'ehrenfest', 'ehrenfest_rates', 'financial_birth_death', 'fixed_time_performance')
 
 
 def main():

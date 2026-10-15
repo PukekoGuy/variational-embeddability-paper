@@ -3,13 +3,14 @@
 import numpy as np
 from scipy.optimize import minimize
 from .matrix_helpers import A_mat_from_rates, matrix_to_rates
+from .regularisation import regularisation_weights, sobolev_objective_grad
 
 class JumpTimeGradient:
-    def __init__(self, rank, num_intervals=100, mu=1e-2, kappa=1e2, max_iter=500):
+    def __init__(self, rank, num_intervals=100, max_iter=500,
+                 *, mu0=1e-2, mu1=1e-2):
         self.num_intervals = num_intervals
         self.dt = 1.0 / num_intervals
-        self.mu = mu
-        self.kappa = kappa
+        self.mu0, self.mu1 = regularisation_weights(mu0, mu1)
         self.rank = rank
         self.num_rates = rank * (rank - 1)
         self.epsilon = 1e-12
@@ -72,7 +73,7 @@ class JumpTimeGradient:
         return counts
 
     def objective_grad(self, x, jump_times, states):
-        """Compatibility wrapper used for gradient checking/debugging."""
+        """Evaluate the objective and gradient directly from jump histories."""
         counts = self.transition_counts(jump_times, states)
         return self.objective_grad_from_counts(x, counts)
 
@@ -88,15 +89,14 @@ class JumpTimeGradient:
         P = np.eye(self.rank)[None, :, :] + self.dt * A[: self.num_intervals]
         safe_P = P + self.epsilon
 
-        U -= self.kappa * np.sum(counts * np.log(safe_P))
+        U -= np.sum(counts * np.log(safe_P))
         matrix_gradient[: self.num_intervals] -= (
-            self.kappa * self.dt * counts / safe_P
+            self.dt * counts / safe_P
         )
 
-        differences = A[1:] - A[:-1]
-        U += 0.5 * self.mu / self.dt * np.sum(differences**2)
-        matrix_gradient[1:] += self.mu / self.dt * differences
-        matrix_gradient[:-1] -= self.mu / self.dt * differences
+        penalty, penalty_gradient = sobolev_objective_grad(A, self.dt, self.mu0, self.mu1)
+        U += penalty
+        matrix_gradient += penalty_gradient
 
         rate_gradient = np.stack([
             matrix_to_rates(grad, self.rank, self.num_rates)

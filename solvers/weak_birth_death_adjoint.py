@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.optimize import minimize
 from .birth_death_helpers import A_mat_from_birth_death_rates, adjoint_to_birth_death_rates, num_birth_death_rates
+from .regularisation import regularisation_weights, sobolev_objective_grad
 
 class BirthDeathEmbedder:
     """Estimate a time-varying, level-dependent birth/death generator path.
@@ -13,14 +14,14 @@ class BirthDeathEmbedder:
     Set absorbing_final=False to fit a nonabsorbing final state.
     """
 
-    def __init__(self, rank, num_intervals=100, mu=1e-2, kappa=1.0, max_iter=500, absorbing_final=True, epsilon=1e-12,
-                 euler_rate_cap=0.49, initial_rate=1.0, ftol=1e-9, gtol=1e-5):
+    def __init__(self, rank, num_intervals=100, max_iter=500, absorbing_final=True, epsilon=1e-12,
+                 euler_rate_cap=0.49, initial_rate=1.0, ftol=1e-9, gtol=1e-5,
+                 *, mu0=1e-2, mu1=1e-2):
         if rank < 2:
             raise ValueError("rank must be at least 2")
         self.num_intervals = num_intervals
         self.dt = 1.0 / num_intervals
-        self.mu = mu
-        self.kappa = kappa
+        self.mu0, self.mu1 = regularisation_weights(mu0, mu1)
         self.rank = rank
         self.num_rates = num_birth_death_rates(rank)
         self.absorbing_final = absorbing_final
@@ -65,10 +66,10 @@ class BirthDeathEmbedder:
                 prefix.append(prefix[-1] @ E[k])
             transition = prefix[-1]
 
-            objective -= self.kappa * np.sum(
+            objective -= np.sum(
                 counts * np.log(transition + self.epsilon)
             )
-            adjoint = -self.kappa * counts / (transition + self.epsilon)
+            adjoint = -counts / (transition + self.epsilon)
 
             for k in range(stop - 1, start - 1, -1):
                 forward_to_k = prefix[k - start]
@@ -80,10 +81,12 @@ class BirthDeathEmbedder:
                     generator_gradient[levels + 1, levels] - generator_gradient[levels + 1, levels + 1])
                 adjoint = adjoint @ E[k].T
 
-        differences = theta[1:] - theta[:-1]
-        objective += 0.5 * self.mu / self.dt * np.sum(differences**2)
-        rate_gradient[1:] += self.mu / self.dt * differences
-        rate_gradient[:-1] -= self.mu / self.dt * differences
+        penalty, penalty_gradient = sobolev_objective_grad(A, self.dt, self.mu0, self.mu1)
+        objective += penalty
+        rate_gradient[:, :self.rank - 1] += (
+            penalty_gradient[:, levels, levels + 1] - penalty_gradient[:, levels, levels])
+        rate_gradient[:, self.rank - 1:] += (
+            penalty_gradient[:, levels + 1, levels] - penalty_gradient[:, levels + 1, levels + 1])
         if self.absorbing_final:
             rate_gradient[:, -1] = 0.0
 

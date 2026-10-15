@@ -23,16 +23,10 @@ def main() -> None:
         help="numeric CSV containing the target transition matrix Pi",
     )
     parser.add_argument(
-        "--kappa",
-        type=float,
-        default=1.0e4,
-        help="weight on ||exp(A)-Pi||_F^2 (default: 1e4)",
-    )
-    parser.add_argument(
         "--mu0",
         type=float,
-        default=1.0e-4,
-        help="weight on ||A||_F^2 (default: 1e-4)",
+        default=1.0e-8,
+        help="weight on ||A||_F^2 (default: 1e-8)",
     )
     parser.add_argument(
         "--max-iter",
@@ -63,7 +57,6 @@ def main() -> None:
     print(f"Loaded Pi from {args.pi_csv} with shape {Pi.shape}.")
 
     solver = StrongBirthDeathEmbedder(
-        kappa=args.kappa,
         mu0=args.mu0,
         max_iter=args.max_iter,
         rate_upper_bound=args.rate_upper_bound,

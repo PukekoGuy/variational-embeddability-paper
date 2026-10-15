@@ -29,11 +29,14 @@ def main():
     parser.add_argument("--num-trials", type=int, default=5,
                         help="Independent trials per sample size (default: 5)")
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--mu0", type=float, default=1., help="Generator magnitude penalty weight")
+    parser.add_argument("--mu1", type=float, default=1., help="Generator derivative penalty weight")
     args = parser.parse_args()
     if not args.plot_only:
         generate_jump_comparison(args.results_file, num_individuals_list=args.individuals,
                       num_intervals=args.num_intervals, max_iter=args.max_iter,
-                      seed=args.seed, batch_size=args.batch_size, num_trials=args.num_trials)
+                      seed=args.seed, batch_size=args.batch_size, num_trials=args.num_trials,
+                      mu0=args.mu0, mu1=args.mu1)
     plot_fixed_vs_jump_results(args.results_file, args.figure_file, show=not args.no_show)
 
 

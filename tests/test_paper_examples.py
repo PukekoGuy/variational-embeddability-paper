@@ -10,6 +10,33 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 
 class PaperExamples(unittest.TestCase):
+    def test_fixed_time_performance_runs_new_trials_and_replots_without_fitting(self):
+        import csv
+        with tempfile.TemporaryDirectory() as directory:
+            results = Path(directory)/'measurements.csv'
+            figure = Path(directory)/'fixed_time_performance.png'
+            command = [sys.executable, str(ROOT/'run_example.py'), 'fixed_time_performance',
+                       '--results-file', str(results), '--figure-file', str(figure), '--no-show']
+            result = subprocess.run(command + ['--individuals', '3', '6',
+                                    '--num-intervals', '20', '--num-observations', '3',
+                                    '--num-trials', '2', '--max-iter', '2',
+                                    '--mu0', '.03', '--mu1', '.07'],
+                                    capture_output=True, text=True, timeout=30,
+                                    env={**os.environ, 'MPLBACKEND': 'Agg'})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with results.open() as file:
+                rows = list(csv.DictReader(file))
+            self.assertEqual([int(row['num_individuals']) for row in rows], [3, 6])
+            self.assertTrue(all(int(row['num_trials']) == 2 for row in rows))
+            self.assertTrue(all(float(row['fixed_execution_seconds']) > 0 for row in rows))
+            self.assertTrue(all(np.isfinite(float(row['fixed_mise'])) for row in rows))
+            self.assertTrue(figure.exists())
+            before = results.read_bytes()
+            result = subprocess.run(command + ['--plot-only'], capture_output=True,
+                                    text=True, timeout=30, env={**os.environ, 'MPLBACKEND': 'Agg'})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(results.read_bytes(), before)
+
     def test_launcher_exists(self):
         self.assertTrue((ROOT / 'run_example.py').exists())
 

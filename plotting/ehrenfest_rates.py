@@ -1,4 +1,4 @@
-"""Plot all ten rates from a saved, single-sample six-state Ehrenfest fit."""
+"""Compare fixed/jump estimates of all ten six-state Ehrenfest rates."""
 
 from pathlib import Path
 import numpy as np
@@ -12,13 +12,18 @@ def plot_ehrenfest_rates(generators_file, figure_file=None, *, show=True):
     with np.load(generators_file, allow_pickle=False) as data:
         times = data['times']
         true = data['true_generator']
-        estimates = data['mean_estimated_generators']
+        estimates = data['mean_fixed_estimated_generators']
+        jump_estimates = data['mean_jump_estimated_generators']
         individuals = data['individuals']
     if (true.shape != (len(times), 6, 6)
             or estimates.shape != (1, len(times), 6, 6)
             or individuals.shape != (1,)):
         raise ValueError('Expected one saved sample size and six-state generators')
-    fig, axes = plot_level_rates(estimates, true, times=times, show=False)
+    if jump_estimates.shape != estimates.shape:
+        raise ValueError('Jump-time and fixed-time estimates must have matching shapes')
+    paths = [estimates[0], jump_estimates[0]]
+    labels = ['Fixed-time', 'Jump-time']
+    fig, axes = plot_level_rates(paths, true, times=times, show=False)
     axes = axes.T
     fig.set_size_inches(10, 14)
     grid = fig.add_gridspec(5, 2)
@@ -27,9 +32,12 @@ def plot_ehrenfest_rates(generators_file, figure_file=None, *, show=True):
         ax.set_box_aspect(.5)
         ax.set_xlabel('Time' if row == 4 else '')
     for ax in axes.flat:
+        for line, label in zip(ax.lines[:-1], labels):
+            line.set_label(label)
+            line.set_alpha(.85)
         ax.grid(True, alpha=.3)
         ax.legend()
-    fig.suptitle(f'Ehrenfest rates: {int(individuals[0])} simulations')
+    fig.suptitle(f'Ehrenfest rates: {int(individuals[0])} independent boxes')
     fig.tight_layout()
     if figure_file is not None:
         Path(figure_file).parent.mkdir(parents=True, exist_ok=True)

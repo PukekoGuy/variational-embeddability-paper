@@ -61,19 +61,15 @@ class StrongBirthDeathEmbedder:
 
     def __init__(
         self,
-        kappa: float = 1.0e4,
         mu0: float = 1.0e-4,
         max_iter: int = 10000,
         rate_upper_bound: float | None = None,
     ) -> None:
-        if kappa <= 0:
-            raise ValueError("kappa must be positive.")
         if mu0 < 0:
             raise ValueError("mu0 must be nonnegative.")
         if rate_upper_bound is not None and rate_upper_bound <= 0:
             raise ValueError("rate_upper_bound must be positive when supplied.")
 
-        self.kappa = float(kappa)
         self.mu0 = float(mu0)
         self.max_iter = int(max_iter)
         self.rate_upper_bound = rate_upper_bound
@@ -83,7 +79,7 @@ class StrongBirthDeathEmbedder:
 
         For P = exp(A), the loss is
 
-            U(A) = kappa/2 ||P-Pi||_F^2 + mu0/2 ||A||_F^2.
+            U(A) = 1/2 ||P-Pi||_F^2 + mu0/2 ||A||_F^2.
 
         The adjoint of the Frechet derivative of exp at A is evaluated by
         ``expm_frechet(A.T, P-Pi)``.  This avoids a time discretisation of the
@@ -95,13 +91,13 @@ class StrongBirthDeathEmbedder:
         residual = P - Pi
 
         objective = (
-            0.5 * self.kappa * np.sum(residual * residual)
+            0.5 * np.sum(residual * residual)
             + 0.5 * self.mu0 * np.sum(A * A)
         )
 
         # If L_exp(A,E) is the Frechet derivative of exp(A), then its
         # Frobenius adjoint applied to residual is L_exp(A^T, residual).
-        grad_A_fit = self.kappa * expm_frechet(
+        grad_A_fit = expm_frechet(
             A.T, residual, compute_expm=False
         )
         grad_A = grad_A_fit + self.mu0 * A

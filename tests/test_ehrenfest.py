@@ -8,8 +8,32 @@ from scipy.linalg import expm
 from experiments import ehrenfest as e
 from plotting.ehrenfest_results import plot_ehrenfest_results
 from solvers.weak_birth_death_adjoint import BirthDeathEmbedder
+from solvers import BirthDeathJumpTimeGradient
 
 class EhrenfestTests(unittest.TestCase):
+    def test_paired_observations_are_snapshots_of_the_same_jump_histories(self):
+        from experiments.observations import Observation
+        times = np.array([0., .5, 1.])
+        sampler = Observation(e.ehrenfest_generator(2, 2.), 3, times, 10, seed=8)
+        fixed, jumps, histories = e.simulate_paired_observations(
+            sampler, times, 30, np.ones(3)/3)
+        for individual, (events, states) in enumerate(zip(jumps, histories)):
+            expected = [states[np.count_nonzero(np.asarray(events) < index)]
+                        for index in (0, 5, 10)]
+            np.testing.assert_array_equal(fixed[:, individual], expected)
+
+    def test_mise_plot_includes_both_methods_without_refitting(self):
+        import matplotlib.pyplot as plt
+        with tempfile.TemporaryDirectory() as directory:
+            filename = Path(directory)/'results.csv'
+            filename.write_text('num_individuals,fixed_mise,jump_mise\n10,.2,.1\n20,.1,.03\n')
+            fig = plot_ehrenfest_results(filename, show=False)
+            self.addCleanup(plt.close, fig)
+            fixed, jump = fig.axes[0].lines
+            np.testing.assert_allclose(fixed.get_ydata(), [.2, .1])
+            np.testing.assert_allclose(jump.get_ydata(), [.1, .03])
+            self.assertEqual([fixed.get_label(), jump.get_label()], ['Fixed-time', 'Jump-time'])
+
     def test_mise_averages_trial_errors_over_all_grid_points_and_entries(self):
         # Three grid points, four entries per matrix. The only nonzero errors
         # are at the final point: squared sums are 8 and 72, hence trial errors
@@ -21,16 +45,22 @@ class EhrenfestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             prefix = Path(directory) / 'experiment'
             with patch.object(BirthDeathEmbedder, 'optimise_A',
-                              side_effect=[(first, status), (second, status)]):
+                              side_effect=[(first, status), (second, status)]), \
+                 patch.object(BirthDeathJumpTimeGradient, 'optimise_A',
+                              side_effect=[(2*first, status), (2*second, status)]):
                 _, paths, rows = e.run_experiments(
                     lambda t: np.zeros((2, 2)), 2, [0., 1.], 2, [3],
                     num_trials=2, output_prefix=prefix,
                 )
-            self.assertAlmostEqual(rows[0]['mise'], 10/3)
+            self.assertAlmostEqual(rows[0]['fixed_mise'], 10/3)
+            self.assertAlmostEqual(rows[0]['jump_mise'], 40/3)
             trials = np.genfromtxt(f'{prefix}_trials.csv', delimiter=',', names=True,
                                   dtype=None, encoding='utf-8')
-            np.testing.assert_allclose(trials['ise'], [2/3, 6.])
-            np.testing.assert_allclose(paths[0], (first + second) / 2)
+            np.testing.assert_allclose(trials['fixed_ise'], [2/3, 6.])
+            np.testing.assert_allclose(trials['jump_ise'], [8/3, 24.])
+            np.testing.assert_allclose(paths['fixed'][0], (first + second) / 2)
+            with np.load(f'{prefix}_generators.npz') as saved:
+                np.testing.assert_allclose(saved['mean_jump_estimated_generators'][0], first + second)
 
     def test_model_endpoints_and_volume_effect(self):
         q = e.ehrenfest_generator(6, 6., volume_a_fn=lambda t: np.exp(-t))
@@ -95,13 +125,18 @@ class EhrenfestTests(unittest.TestCase):
                                     output_prefix=prefix,
                                     volume_a_fn=lambda t: np.exp(-t),
                                     volume_b_fn=lambda t: 1.)
-            self.assertTrue(np.isfinite(rows[0]['mise']))
-            self.assertEqual(rows[0]['converged_trials'],2)
+            self.assertTrue(np.isfinite(rows[0]['fixed_mise']))
+            self.assertEqual(rows[0]['fixed_converged_trials'],2)
             data = np.load(f'{prefix}_generators.npz')
-            self.assertTrue(np.all(data['mean_estimated_generators'][0,:,1,0]>0))
-            np.testing.assert_allclose(data['mean_estimated_generators'].sum(axis=-1),0,atol=1e-12)
+            self.assertTrue(np.all(data['mean_fixed_estimated_generators'][0,:,1,0]>0))
+            jump = data['mean_jump_estimated_generators']
+            self.assertEqual(jump.shape, data['mean_fixed_estimated_generators'].shape)
+            self.assertTrue(np.all(jump[0,:,1,0]>0))
+            np.testing.assert_allclose(jump.sum(axis=-1), 0., atol=1e-12)
+            np.testing.assert_allclose(data['mean_fixed_estimated_generators'].sum(axis=-1),0,atol=1e-12)
             trials = np.genfromtxt(f'{prefix}_trials.csv',delimiter=',',names=True,dtype=None,encoding='utf-8')
-            self.assertAlmostEqual(rows[0]['mise'],np.mean(trials['ise']))
+            self.assertAlmostEqual(rows[0]['fixed_mise'],np.mean(trials['fixed_ise']))
+            self.assertAlmostEqual(rows[0]['jump_mise'], np.mean(trials['jump_ise']))
             fig = plot_ehrenfest_results(f'{prefix}_results.csv', f'{prefix}_mise.png', show=False)
             self.assertTrue(Path(f'{prefix}_mise.png').exists())
             import matplotlib.pyplot as plt

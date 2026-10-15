@@ -23,10 +23,13 @@ def main():
     parser.add_argument('--num-intervals', type=int, default=1000)
     parser.add_argument('--max-iter', type=int, default=500)
     parser.add_argument('--seed', type=int)
+    parser.add_argument("--mu0", type=float, default=.01, help="Generator magnitude penalty weight")
+    parser.add_argument("--mu1", type=float, default=.01, help="Generator derivative penalty weight")
     args = parser.parse_args()
     if not args.plot_only:
         generate_comparison(args.results_file, args.individuals, args.num_observations, args.constant,
-                      num_intervals=args.num_intervals, max_iter=args.max_iter, seed=args.seed)
+                      num_intervals=args.num_intervals, max_iter=args.max_iter, seed=args.seed,
+                      mu0=args.mu0, mu1=args.mu1)
     plot_comparison_results(args.results_file, args.figure_file, show=not args.no_show,
                             different_colors=False)
 

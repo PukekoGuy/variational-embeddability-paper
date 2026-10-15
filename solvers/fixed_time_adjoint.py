@@ -3,13 +3,14 @@
 import numpy as np
 from scipy.optimize import minimize
 from .matrix_helpers import A_mat_from_rates, adjoint_to_rates, fixed_transition_counts
+from .regularisation import regularisation_weights, sobolev_objective_grad
 
 class FixedTimeAdjoint:
-    def __init__(self, rank, num_intervals=100, mu=1e-2, kappa=1e2, max_iter=500):
+    def __init__(self, rank, num_intervals=100, max_iter=500,
+                 *, mu0=1e-2, mu1=1e-2):
         self.num_intervals = num_intervals
         self.dt = 1.0 / num_intervals
-        self.mu = mu
-        self.kappa = kappa
+        self.mu0, self.mu1 = regularisation_weights(mu0, mu1)
         self.rank = rank
         self.num_rates = rank * (rank - 1)
         self.epsilon = 1e-12
@@ -60,14 +61,14 @@ class FixedTimeAdjoint:
             transition = prefix[-1]
 
             # Negative log likelihood
-            U -= self.kappa * np.sum(
+            U -= np.sum(
                 counts * np.log(transition + self.epsilon)
             )
 
             # Terminal adjoint:
             #
-            # dJ/dT = -kappa * counts / T
-            Lam = -self.kappa * counts / (
+            # dJ/dT = -counts / T
+            Lam = -counts / (
                 transition + self.epsilon
             )
 
@@ -84,25 +85,13 @@ class FixedTimeAdjoint:
                 # Lambda_k = Lambda_{k+1} E_k^T
                 Lam = Lam @ E[k].T
 
-        differences = theta[1:] - theta[:-1]
-        row_differences = differences.reshape(
-            self.num_intervals, self.rank, self.rank - 1
-        )
-        # A_ii = -sum_{j != i} theta_ij: include squared diagonal changes
-        # without constructing full matrices of generator differences.
-        row_sums = row_differences.sum(axis=2, keepdims=True)
-        smoothing_weight = self.mu / self.dt
-
-        U += (
-            0.5 * smoothing_weight
-            * (np.sum(differences ** 2) + np.sum(row_sums ** 2))
-        )
-
-        smoothing_gradient = smoothing_weight * (
-            row_differences + row_sums
-        ).reshape(differences.shape)
-        rate_gradient[1:] += smoothing_gradient
-        rate_gradient[:-1] -= smoothing_gradient
+        penalty, penalty_gradient = sobolev_objective_grad(A, self.dt, self.mu0, self.mu1)
+        U += penalty
+        # Each free rate changes its off-diagonal entry and its row diagonal.
+        off_diagonal = ~np.eye(self.rank, dtype=bool)
+        diagonal = np.diagonal(penalty_gradient, axis1=1, axis2=2)
+        rate_gradient += (penalty_gradient[:, off_diagonal]
+                          - np.repeat(diagonal, self.rank - 1, axis=1))
 
         return U, rate_gradient.ravel()
     
