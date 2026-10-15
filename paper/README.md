@@ -28,8 +28,8 @@ python -c 'import numpy as np; from experiments.ehrenfest import generate_data; 
 
 ## Ehrenfest rates over time
 
-This separate example fits one sample of 5,000 independent chains, with four
-particles (five states). It plots four rows of birth rates on the left and death rates on the right, each
+This separate example fits one sample of 5,000 independent chains, with five
+particles (six states). It plots five rows of birth rates on the left and death rates on the right, each
 against the true rate over time, using chamber volumes `exp(-t)` and `1`.
 The existing Ehrenfest MISE example remains available.
 

@@ -1,9 +1,9 @@
-"""Five-state Ehrenfest rates over time from one fixed-size observed sample.
+"""Six-state Ehrenfest rates over time from one fixed-size observed sample.
 
 Run: python run_example.py ehrenfest_rates --no-show
 Replot: python run_example.py ehrenfest_rates --plot-only --no-show
 
-Four particles give five states and eight directed neighbouring-state rates.
+Five particles give six states and ten directed neighbouring-state rates.
 The chamber volumes are V_A(t)=exp(-t) and V_B(t)=1 on [0, 1].
 """
 
@@ -37,7 +37,7 @@ def main():
             parser.error('--num-observations must be at least 2')
         if args.num_intervals < 1 or args.num_intervals % (args.num_observations - 1):
             parser.error('--num-intervals must be positive and divisible by --num-observations minus 1')
-        generate_data(num_particles=4, jump_frequency=args.jump_frequency,
+        generate_data(num_particles=5, jump_frequency=args.jump_frequency,
                       volume_a_fn=lambda t: np.exp(-t), volume_b_fn=lambda t: 1.,
                       individuals=(args.individuals,), num_observations=args.num_observations,
                       num_intervals=args.num_intervals, num_trials=1,
