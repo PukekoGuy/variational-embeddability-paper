@@ -12,12 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EhrenfestRatesTests(unittest.TestCase):
-    def test_panels_use_saved_times_and_all_ten_directed_rates(self):
+    def test_panels_use_saved_times_and_all_eight_directed_rates(self):
         from plotting.ehrenfest_rates import plot_ehrenfest_rates
         times = np.array([0., .25, 1.])
-        true = np.zeros((3, 6, 6))
+        true = np.zeros((3, 5, 5))
         estimate = np.zeros_like(true)
-        for i in range(5):
+        for i in range(4):
             true[:, i, i + 1] = [i + 1, i + 2, i + 3]
             true[:, i + 1, i] = [i + 11, i + 12, i + 13]
         estimate[:] = true + .5
@@ -27,11 +27,11 @@ class EhrenfestRatesTests(unittest.TestCase):
                      mean_estimated_generators=[estimate], individuals=[1000])
             fig, axes = plot_ehrenfest_rates(saved, show=False)
             self.addCleanup(plt.close, fig)
-            self.assertEqual(axes.shape, (2, 5))
-            for row in range(2):
-                for col in range(5):
+            self.assertEqual(axes.shape, (4, 2))
+            for row in range(4):
+                for col in range(2):
                     estimated_line, true_line = axes[row, col].lines
-                    expected = np.array([col + 1, col + 2, col + 3]) + 10 * row
+                    expected = np.array([row + 1, row + 2, row + 3]) + 10 * col
                     np.testing.assert_allclose(true_line.get_ydata(), expected)
                     np.testing.assert_allclose(estimated_line.get_ydata(), expected + .5)
                     np.testing.assert_allclose(true_line.get_xdata(), times)
@@ -48,7 +48,7 @@ class EhrenfestRatesTests(unittest.TestCase):
                                     env={**os.environ, 'MPLBACKEND': 'Agg'})
             self.assertEqual(fitted.returncode, 0, fitted.stderr)
             with np.load(f'{prefix}_generators.npz') as saved:
-                self.assertEqual(saved['mean_estimated_generators'].shape, (1, 5, 6, 6))
+                self.assertEqual(saved['mean_estimated_generators'].shape, (1, 5, 5, 5))
                 np.testing.assert_array_equal(saved['individuals'], [20])
             self.assertTrue(Path(f'{prefix}_rates.png').exists())
             before = Path(f'{prefix}_generators.npz').read_bytes()
