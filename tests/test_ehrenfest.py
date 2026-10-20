@@ -11,6 +11,24 @@ from solvers.weak_birth_death_adjoint import BirthDeathEmbedder
 from solvers import BirthDeathJumpTimeGradient
 
 class EhrenfestTests(unittest.TestCase):
+    def test_fixed_observation_count_matches_jump_frequency(self):
+        with tempfile.TemporaryDirectory() as directory:
+            prefix = Path(directory) / 'matched'
+            e.generate_data(num_particles=1, jump_frequency=4, individuals=(3,),
+                            num_intervals=57, num_trials=1, max_iter=2,
+                            output_prefix=prefix)
+            with np.load(f'{prefix}_generators.npz') as data:
+                np.testing.assert_allclose(data['observation_times'], [0., 1/3, 2/3, 1.])
+                np.testing.assert_allclose(np.diagonal(data['true_generator'], axis1=1, axis2=2), -4.)
+
+    def test_comparison_requires_an_integer_jump_frequency_of_at_least_two(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for frequency in (0, 1, -1, 2.5, np.nan, np.inf):
+                with self.subTest(frequency=frequency), self.assertRaisesRegex(ValueError, 'jump_frequency'):
+                    e.generate_data(jump_frequency=frequency, individuals=(3,),
+                                    num_trials=1, max_iter=2,
+                                    output_prefix=Path(directory) / 'invalid')
+
     def test_paired_observations_are_snapshots_of_the_same_jump_histories(self):
         from experiments.observations import Observation
         times = np.array([0., .5, 1.])
@@ -119,8 +137,8 @@ class EhrenfestTests(unittest.TestCase):
     def test_end_to_end_saved_results_and_nonabsorbing_fit(self):
         with tempfile.TemporaryDirectory() as directory:
             prefix = Path(directory)/'experiment'
-            rows = e.generate_data(num_particles=1, jump_frequency=1.,
-                                    individuals=(200,),num_observations=3,
+            rows = e.generate_data(num_particles=1, jump_frequency=3,
+                                    individuals=(200,),
                                     num_intervals=10,num_trials=2,max_iter=500,
                                     output_prefix=prefix,
                                     volume_a_fn=lambda t: np.exp(-t),

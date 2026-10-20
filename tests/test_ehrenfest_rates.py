@@ -12,6 +12,25 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EhrenfestRatesTests(unittest.TestCase):
+    def test_tight_layout_uses_full_panel_space_when_resized(self):
+        from plotting.ehrenfest_rates import plot_ehrenfest_rates
+        with tempfile.TemporaryDirectory() as directory:
+            saved = Path(directory) / 'generators.npz'
+            true = np.zeros((3, 6, 6))
+            np.savez(saved, times=[0., .25, 1.], true_generator=true,
+                     mean_fixed_estimated_generators=[true],
+                     mean_jump_estimated_generators=[true], individuals=[1000])
+            fig, axes = plot_ehrenfest_rates(saved, show=False)
+            self.addCleanup(plt.close, fig)
+            for size in ((10, 14), (8, 12)):
+                fig.set_size_inches(*size)
+                fig.tight_layout()
+                fig.canvas.draw()
+                for ax in axes.flat:
+                    # A fixed box aspect must not shrink the panel inside its slot.
+                    slot = ax.get_subplotspec().get_position(fig)
+                    np.testing.assert_allclose(ax.get_position().bounds, slot.bounds)
+
     def test_panels_use_saved_times_and_all_ten_directed_rates(self):
         from plotting.ehrenfest_rates import plot_ehrenfest_rates
         times = np.array([0., .25, 1.])
@@ -47,7 +66,7 @@ class EhrenfestRatesTests(unittest.TestCase):
             command = [sys.executable, str(ROOT / 'run_example.py'), 'ehrenfest_rates',
                        '--output-prefix', str(prefix), '--figure-file',
                        str(prefix) + '_rates.png', '--no-show']
-            fitted = subprocess.run(command + ['--individuals', '20', '--num-observations', '3',
+            fitted = subprocess.run(command + ['--individuals', '20', '--jump-frequency', '3',
                                     '--num-intervals', '12', '--max-iter', '2'],
                                     capture_output=True, text=True, timeout=30,
                                     env={**os.environ, 'MPLBACKEND': 'Agg'})
@@ -56,6 +75,7 @@ class EhrenfestRatesTests(unittest.TestCase):
                 self.assertEqual(saved['mean_fixed_estimated_generators'].shape, (1, 13, 6, 6))
                 self.assertEqual(saved['mean_jump_estimated_generators'].shape, (1, 13, 6, 6))
                 np.testing.assert_array_equal(saved['individuals'], [20])
+                np.testing.assert_allclose(saved['observation_times'], [0., .5, 1.])
             self.assertTrue(Path(f'{prefix}_rates.png').exists())
             before = Path(f'{prefix}_generators.npz').read_bytes()
             replotted = subprocess.run(command + ['--plot-only'], capture_output=True,

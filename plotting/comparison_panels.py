@@ -22,16 +22,16 @@ def plot_comparison_panels(data, *, plot_frequency=1, fontsize=PLOT_FONT_SIZE,
     sizes = data['individuals']
     constant = float(data['constant'])
     for row, count in enumerate(data['num_observations']):
-        for col, name in enumerate(('fixed', 'jump')):
+        for ax, name in zip(axes[row], ('fixed', 'jump')):
             title = (f'Fixed-time adjoint: {count} observations\nExpected jumps = {count / constant:g}'
                      if name == 'fixed' else
                      f'Jump-time gradient: {count} expected observations\nExpected jumps = {count:g}')
-            plot_generator_path(data[name + '_estimates'][row], data[name + '_true'][row],
-                                   sizes, times=np.linspace(0., 1., count) if col == 0 else None,
-                                   plot_frequency=plot_frequency, ax=axes[row, col],
-                                   title=title, fontsize=fontsize,
-                                   different_colors=different_colors,
-                                   true_linewidth=TRUE_PATH_WIDTH_FACTOR * plt.rcParams['lines.linewidth'])
+            plot_generator_path(
+                data[name + '_estimates'][row], data[name + '_true'][row], sizes,
+                plot_frequency=plot_frequency, ax=ax, title=title, fontsize=fontsize,
+                different_colors=different_colors,
+                true_linewidth=TRUE_PATH_WIDTH_FACTOR * plt.rcParams['lines.linewidth'],
+            )
     if show:
         plt.show()
     return fig, axes

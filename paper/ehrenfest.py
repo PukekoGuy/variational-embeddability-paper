@@ -17,6 +17,7 @@ mean((estimate - true_A)**2), over all grid points and matrix entries,
 including diagonals, as in the two-state comparison experiments.
 Each trial simulates Euler trajectories once and gives their periodic snapshots
 to the fixed-time solver and their full jump histories to the jump-time solver.
+The fixed-time observation count equals jump_frequency.
 """
 import argparse
 from pathlib import Path
@@ -31,9 +32,9 @@ def main():
     parser.add_argument('--plot-only', action='store_true')
     parser.add_argument('--no-show', action='store_true')
     parser.add_argument('--num-particles', type=int, default=6)
-    parser.add_argument('--jump-frequency', type=float, default=6.)
+    parser.add_argument('--jump-frequency', type=int, default=6,
+                        help='Jump rate and number of fixed-time observations (at least 2)')
     parser.add_argument('--individuals', type=int, nargs='+', default=[100, 300, 1000, 3000, 10000])
-    parser.add_argument('--num-observations', type=int, default=20)
     parser.add_argument('--num-intervals', type=int, default=190)
     parser.add_argument('--num-trials', type=int, default=5)
     parser.add_argument('--max-iter', type=int, default=5000)
@@ -44,7 +45,7 @@ def main():
     if not args.plot_only:
         generate_data(output_prefix=args.output_prefix, num_particles=args.num_particles,
                       jump_frequency=args.jump_frequency, individuals=args.individuals,
-                      num_observations=args.num_observations, num_intervals=args.num_intervals,
+                      num_intervals=args.num_intervals,
                       num_trials=args.num_trials, max_iter=args.max_iter, seed=args.seed,
                       mu0=args.mu0, mu1=args.mu1)
     plot_ehrenfest_results(f'{args.output_prefix}_results.csv',

@@ -151,9 +151,9 @@ def run_experiments(generator, rank, fixed_times, num_intervals,
     return true_A, estimated_paths, rows
 
 
-def generate_data(num_particles=6, jump_frequency=6.,
+def generate_data(num_particles=6, jump_frequency=6,
                   volume_a_fn=lambda t: 1., volume_b_fn=lambda t: 1.,
-                  individuals=(100, 300, 1000, 3000, 10000), num_observations=20,
+                  individuals=(100, 300, 1000, 3000, 10000),
                   num_intervals=190, num_trials=5, seed=1008,
                   mu0=1., mu1=1., max_iter=5000, initial_distribution=None,
                   ftol=1e-8, gtol=1e-5,
@@ -161,12 +161,18 @@ def generate_data(num_particles=6, jump_frequency=6.,
     """Build the Ehrenfest model and compare fixed/jump fits over sample sizes.
 
     Edit volume_a_fn and volume_b_fn to supply any positive volume functions.
-    For evenly spaced observations, use num_intervals divisible by
-    num_observations - 1. The likelihood is summed and both regularisation weights are fixed across sizes.
+    Use exactly jump_frequency evenly spaced fixed observations on [0, 1],
+    including both endpoints. jump_frequency must be an integer of at least 2;
+    num_intervals must be divisible by jump_frequency - 1.
+    The likelihood is summed and both regularisation weights are fixed across sizes.
     """
+    if (not np.isfinite(jump_frequency) or jump_frequency < 2
+            or jump_frequency != int(jump_frequency)):
+        raise ValueError('jump_frequency must be an integer of at least 2')
+    jump_frequency = int(jump_frequency)
     generator = ehrenfest_generator(num_particles, jump_frequency,
                                     volume_a_fn, volume_b_fn)
-    times = np.linspace(0., 1., num_observations)
+    times = np.linspace(0., 1., jump_frequency)
     _, _, rows = run_experiments(
         generator, num_particles + 1, times, num_intervals, individuals,
         output_prefix=output_prefix, mu0=mu0, mu1=mu1, max_iter=max_iter,

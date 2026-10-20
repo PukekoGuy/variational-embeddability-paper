@@ -10,20 +10,20 @@ from .cosmetics import (LABEL_FONT_SIZE, LEGEND_FONT_SIZE,
 
 
 def plot_fixed_time_performance(results_file, figure_file=None,
-                 *, show=True):
+                                *, show=True):
     """Plot freshly saved fixed-time errors and mean fitting times."""
     data = np.atleast_1d(np.genfromtxt(results_file, delimiter=',', names=True))
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-    for ax, field, title, ylabel, location in zip(
-        axes, ('fixed_mise', 'fixed_execution_seconds'),
-        ('MISE vs. Number of Individuals', 'Time vs Number of Individuals'),
-        ('Mean integrated square error', 'Elapsed time (seconds)'),
-        ('upper right', 'lower left'),
-    ):
-        ax.loglog(data['num_individuals'], data[field], 'o-', color='tab:blue', label='fixed-time')
-        ax.set_title(title, fontsize=TITLE_FONT_SIZE)
+    mise_ax, time_ax = axes
+    n = data['num_individuals']
+    mise_ax.loglog(n, data['fixed_mise'], 'o-', color='tab:blue', label='fixed-time')
+    time_ax.loglog(n, data['fixed_execution_seconds'], 'o-', color='tab:blue', label='fixed-time')
+    mise_ax.set_title('MISE vs. Number of Individuals', fontsize=TITLE_FONT_SIZE)
+    mise_ax.set_ylabel('Mean integrated square error', fontsize=LABEL_FONT_SIZE)
+    time_ax.set_title('Time vs Number of Individuals', fontsize=TITLE_FONT_SIZE)
+    time_ax.set_ylabel('Elapsed time (seconds)', fontsize=LABEL_FONT_SIZE)
+    for ax, location in ((mise_ax, 'upper right'), (time_ax, 'lower left')):
         ax.set_xlabel('Number of individuals sampled', fontsize=LABEL_FONT_SIZE)
-        ax.set_ylabel(ylabel, fontsize=LABEL_FONT_SIZE)
         ax.tick_params(axis='both', labelsize=TICK_LABEL_FONT_SIZE)
         ax.grid(True, which='both', alpha=.3)
         ax.legend(fontsize=LEGEND_FONT_SIZE, loc=location)

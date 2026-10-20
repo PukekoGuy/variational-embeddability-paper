@@ -55,10 +55,7 @@ def plot_adjoint_vs_gradient_results(results_file, figure_file=None, show=True, 
 
 def plot_mise(x_range, MISE, *, show=True):
     """Plot positive errors against sample size; return figure and axes."""
-    log_x = np.log(x_range)
-    log_y = np.log(MISE)
-    line = linregress(log_x,log_y)
-    slope = line.slope
+    slope = linregress(np.log(x_range), np.log(MISE)).slope
 
     fig, ax = plt.subplots()
     ax.loglog(x_range, MISE)

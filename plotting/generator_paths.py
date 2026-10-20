@@ -19,13 +19,14 @@ def plot_generator_path(
     assert gen_paths[0][0].shape == (2, 2)
 
     if ax is None:
-        _, ax = plt.subplots()
+        _, ax = plt.subplots(layout="constrained")
 
     num_individuals_to_plot = list(num_individuals_range)[::plot_frequency]
     gen_paths_to_plot = gen_paths[::plot_frequency]
 
-    true_x = [true_A[t][0, 1] for t in range(len(true_A))]
-    true_y = [true_A[t][1, 0] for t in range(len(true_A))]
+    true_path = np.asarray(true_A)
+    true_x = true_path[:, 0, 1]
+    true_y = true_path[:, 1, 0]
 
     ax.plot(true_x, true_y, label="true", color="C1", linestyle="--",
             linewidth=true_linewidth)
@@ -33,15 +34,15 @@ def plot_generator_path(
     cmap = plt.colormaps["viridis"]
     denom = max(1, len(num_individuals_to_plot) - 1)
     for k, (num_individuals, gen_path) in enumerate(zip(num_individuals_to_plot, gen_paths_to_plot)):
-        x = [gen_path[t][0, 1] for t in range(len(gen_path))]
-        y = [gen_path[t][1, 0] for t in range(len(gen_path))]
+        gen_path = np.asarray(gen_path)
         color = cmap(k / denom) if different_colors else "C0"
-        ax.plot(x, y, label=f"{num_individuals}", color=color, alpha=0.5)
+        ax.plot(gen_path[:, 0, 1], gen_path[:, 1, 0],
+                label=f"{num_individuals}", color=color, alpha=0.5)
 
-    if (times is not None) and observation_markers:
-        for t in times:
-            T = int(round(t * (len(gen_paths[0]) - 1)))
-            ax.plot(true_x[T], true_y[T], marker="x", linestyle="None", color="black", markersize=8, mew=2)
+    if times is not None and observation_markers:
+        indices = np.rint(np.asarray(times) * (len(gen_paths[0]) - 1)).astype(int)
+        ax.plot(true_x[indices], true_y[indices], marker="x", linestyle="None",
+                color="black", markersize=8, mew=2)
 
     ax.set_xlabel(r"$A(t)_{12}$", fontsize=fontsize)
     ax.set_ylabel(r"$A(t)_{21}$", fontsize=fontsize)
@@ -80,14 +81,12 @@ def plot_level_rates(generator_paths, true_A=None, decimal_places=None, *, show=
     fig, axes = plt.subplots(2, rank - 1, squeeze=False, figsize=(4 * (rank - 1), 6))
 
     for level in range(rank - 1):
-        for path in paths:
-            axes[0, level].plot(times, path[:, level, level + 1], alpha=0.45,
-                                label="estimated")
-            axes[1, level].plot(times, path[:, level + 1, level], alpha=0.45,
-                                label="estimated")
-        if true_A is not None:
-            axes[0, level].plot(times, true_A[:, level, level + 1], "k--", label="true")
-            axes[1, level].plot(times, true_A[:, level + 1, level], "k--", label="true")
+        for ax, source, target in ((axes[0, level], level, level + 1),
+                                   (axes[1, level], level + 1, level)):
+            for path in paths:
+                ax.plot(times, path[:, source, target], alpha=0.45, label="estimated")
+            if true_A is not None:
+                ax.plot(times, true_A[:, source, target], "k--", label="true")
         axes[0, level].set_title(rf"birth $\lambda_{{{level}}}$")
         axes[1, level].set_title(rf"death $\mu_{{{level + 1}}}$")
         axes[1, level].set_xlabel(time_label)

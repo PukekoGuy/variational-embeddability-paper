@@ -17,7 +17,7 @@ class Reorganisation(unittest.TestCase):
     def test_paper_modules_can_be_launched_directly(self):
         self.assertIsNotNone(importlib.util.find_spec('paper'))
         for name in ('comparison', 'fixed_vs_jump',
-                     'adjoint_vs_gradient', 'ehrenfest',
+                     'adjoint_vs_gradient', 'ehrenfest', 'ehrenfest_rates',
                      'financial_birth_death'):
             with self.subTest(application=name):
                 result = subprocess.run(
@@ -27,6 +27,8 @@ class Reorganisation(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn('usage:', result.stdout)
+                if name in ('ehrenfest', 'ehrenfest_rates'):
+                    self.assertNotIn('--num-observations', result.stdout)
 
     def test_ehrenfest_can_run_without_paper_or_plotting(self):
         from experiments import ehrenfest
@@ -34,8 +36,8 @@ class Reorganisation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             prefix = Path(folder) / 'nested' / 'ehrenfest'
             rows = ehrenfest.generate_data(
-                num_particles=1, jump_frequency=1., individuals=(20,),
-                num_observations=3, num_intervals=10, num_trials=2,
+                num_particles=1, jump_frequency=3, individuals=(20,),
+                num_intervals=10, num_trials=2,
                 max_iter=2, output_prefix=prefix,
             )
             self.assertTrue(np.isfinite(rows[0]['fixed_mise']))

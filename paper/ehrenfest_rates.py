@@ -7,6 +7,7 @@ Five particles give six states and ten directed neighbouring-state rates.
 Each panel overlays fixed-time and jump-time estimates from the same sample,
 alongside the true rate. Both solvers fit only birth and death rates.
 The chamber volumes are V_A(t)=exp(-t) and V_B(t)=1 on [0, 1].
+The fixed-time observation count equals jump_frequency.
 """
 
 import argparse
@@ -28,8 +29,8 @@ def main():
     parser.add_argument('--plot-only', action='store_true')
     parser.add_argument('--no-show', action='store_true')
     parser.add_argument('--individuals', type=int, default=1000)
-    parser.add_argument('--jump-frequency', type=float, default=6.)
-    parser.add_argument('--num-observations', type=int, default=20)
+    parser.add_argument('--jump-frequency', type=int, default=6,
+                        help='Jump rate and number of fixed-time observations (at least 2)')
     parser.add_argument('--num-intervals', type=int, default=190)
     parser.add_argument('--max-iter', type=int, default=5000)
     parser.add_argument('--seed', type=int, default=1008)
@@ -37,15 +38,9 @@ def main():
     parser.add_argument("--mu1", type=float, default=1., help="Generator derivative penalty weight")
     args = parser.parse_args()
     if not args.plot_only:
-        if args.individuals < 1:
-            parser.error('--individuals must be positive')
-        if args.num_observations < 2:
-            parser.error('--num-observations must be at least 2')
-        if args.num_intervals < 1 or args.num_intervals % (args.num_observations - 1):
-            parser.error('--num-intervals must be positive and divisible by --num-observations minus 1')
         generate_data(num_particles=5, jump_frequency=args.jump_frequency,
                       volume_a_fn=lambda t: np.exp(-t), volume_b_fn=lambda t: 1.,
-                      individuals=(args.individuals,), num_observations=args.num_observations,
+                      individuals=(args.individuals,),
                       num_intervals=args.num_intervals, num_trials=1,
                       max_iter=args.max_iter, seed=args.seed, output_prefix=args.output_prefix,
                       mu0=args.mu0, mu1=args.mu1)

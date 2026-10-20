@@ -56,7 +56,7 @@ class ExperimentWeightsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(BirthDeathEmbedder, 'optimise_A', autospec=True, side_effect=inspect_fit):
             rows = ehrenfest.generate_data(num_particles=1, individuals=[3],
-                                           num_observations=3, num_intervals=6,
+                                           jump_frequency=3, num_intervals=6,
                                            num_trials=1, max_iter=2, mu0=.3, mu1=.7,
                                            output_prefix=Path(directory)/'ehrenfest')
             self.assertTrue(np.isfinite(rows[0]['fixed_mise']))
